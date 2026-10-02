@@ -20,6 +20,7 @@ interface AuthContextType {
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   isLoading: boolean;
   isAuthenticated: boolean;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -34,6 +35,11 @@ export const AuthProvider = ({
   const [isLoading, setIsLoading] = useState(true);
 
   const isAuthenticated = user !== null;
+
+  const logout = () => {
+  auth.removeToken();
+  setUser(null);
+};
 
   useEffect(() => {
   const restoreSession = async () => {
@@ -66,6 +72,7 @@ export const AuthProvider = ({
         setUser,
         isLoading,
         isAuthenticated,
+        logout,
       }}
     >
       {children}

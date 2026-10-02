@@ -1,10 +1,12 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { auth } from '../services/auth';
-import { useContext } from 'react';
 import AuthContext from '../context/AuthContext';
 
 function Login() {
+
+  const navigate = useNavigate();
 
   const authContext = useContext(AuthContext);
 
@@ -45,6 +47,8 @@ function Login() {
       const me = await api.getMe();
 
       setUser(me.data);
+      
+      navigate('/dashboard');
 
       setMessage(result.message);
 
@@ -78,6 +82,8 @@ function Login() {
             <p className="subtitle">
               Sign in to continue to your account.
             </p>
+
+            
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -120,6 +126,17 @@ function Login() {
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+
+          <p className="text-center text-gray-400 text-sm mt-6">
+    Don't have an account?{' '}
+    <button
+        type="button"
+        onClick={() => navigate('/signup')}
+        className="text-purple-400 hover:text-purple-300 transition"
+    >
+        Sign up
+    </button>
+</p>
 
           {message && (
             <div className="success-message">
