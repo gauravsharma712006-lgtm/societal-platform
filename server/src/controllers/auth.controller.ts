@@ -6,9 +6,7 @@ import {
 } from '../services/auth.service';
 
 
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
-import User from '../models/user.model';
 
 
 export const register = async (
@@ -72,53 +70,6 @@ export const login = async (
     }
 
     console.error('Login error:', error);
-
-    res.status(500).json({
-      status: 'error',
-      message: 'Internal Server Error',
-    });
-  }
-};
-
-export const getMe = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(401).json({
-        status: 'error',
-        message: 'Authentication required',
-      });
-
-      return;
-    }
-
-    const user = await User.findById(req.user.userId).select(
-      '-password'
-    );
-
-    if (!user) {
-      res.status(404).json({
-        status: 'error',
-        message: 'User not found',
-      });
-
-      return;
-    }
-
-    res.status(200).json({
-      status: 'success',
-      data: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
-      },
-    });
-  } catch (error) {
-    console.error('Get current user error:', error);
 
     res.status(500).json({
       status: 'error',

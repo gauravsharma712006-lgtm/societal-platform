@@ -1,25 +1,22 @@
-import { Request, Response, NextFunction } from 'express';
+import {
+  Request,
+  Response,
+  NextFunction,
+} from 'express';
+
 import jwt from 'jsonwebtoken';
 
-interface AuthTokenPayload {
-  userId: string;
-  role: string;
-}
+import { env } from '../config/env';
+
+import {
+  AuthTokenPayload,
+  authTokenPayloadSchema,
+} from '../validators/jwt.validator';
 
 export interface AuthenticatedRequest
   extends Request {
   user?: AuthTokenPayload;
 }
-
-const getJwtSecret = (): string => {
-  const secret = process.env.JWT_SECRET;
-
-  if (!secret) {
-    throw new Error('JWT_SECRET is not defined');
-  }
-
-  return secret;
-};
 
 export const authenticate = (
   req: AuthenticatedRequest,
@@ -27,7 +24,8 @@ export const authenticate = (
   next: NextFunction
 ): void => {
   try {
-    const authorization = req.headers.authorization;
+    const authorization =
+      req.headers.authorization;
 
     if (!authorization) {
       res.status(401).json({
@@ -38,12 +36,17 @@ export const authenticate = (
       return;
     }
 
-    const [scheme, token] = authorization.split(' ');
+    const [scheme, token] =
+      authorization.split(' ');
 
-    if (scheme !== 'Bearer' || !token) {
+    if (
+      scheme !== 'Bearer' ||
+      !token
+    ) {
       res.status(401).json({
         status: 'error',
-        message: 'Invalid authorization header',
+        message:
+          'Invalid authorization header',
       });
 
       return;
@@ -51,10 +54,24 @@ export const authenticate = (
 
     const decoded = jwt.verify(
       token,
-      getJwtSecret()
-    ) as AuthTokenPayload;
+      env.JWT_SECRET
+    );
 
-    req.user = decoded;
+    const result =
+      authTokenPayloadSchema.safeParse(
+        decoded
+      );
+
+    if (!result.success) {
+      res.status(401).json({
+        status: 'error',
+        message: 'Invalid token payload',
+      });
+
+      return;
+    }
+
+    req.user = result.data;
 
     next();
   } catch (error) {

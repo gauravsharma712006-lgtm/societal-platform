@@ -3,14 +3,17 @@ import { useContext } from 'react';
 
 import AuthContext from '../context/AuthContext';
 
+
 interface ProtectedRouteProps {
     children: React.ReactNode;
+    allowedRoles?: string[];
 }
 
 
 
 function ProtectedRoute({
     children,
+    allowedRoles,
 }: ProtectedRouteProps) {
     const authContext = useContext(AuthContext);
 
@@ -23,6 +26,7 @@ function ProtectedRoute({
     const {
         isLoading,
         isAuthenticated,
+        hasAnyRole,
     } = authContext;
 
     // Wait until we know whether a session exists
@@ -35,6 +39,19 @@ function ProtectedRoute({
         return (
             <Navigate
                 to="/login"
+                replace
+            />
+        );
+    }
+
+    // Logged in but wrong role → deny access
+    if (
+        allowedRoles &&
+        !hasAnyRole(...allowedRoles)
+    ) {
+        return (
+            <Navigate
+                to="/dashboard"
                 replace
             />
         );

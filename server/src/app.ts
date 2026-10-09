@@ -8,6 +8,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
+import problemRoutes from './routes/problem.routes';
+import mediaRoutes from './routes/media.routes';
+import challengeRoutes from './routes/challenge.routes';
+import teamRoutes from './routes/team.routes';
+import applicationRoutes from './routes/application.routes';
+import teamInvitationRoutes from './routes/team-invitation.routes';
+
 
 const app: Application = express();
 
@@ -39,6 +47,15 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/problems', problemRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/challenges', challengeRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/teams', teamRoutes);
+app.use('/api/team-invitations',teamInvitationRoutes);
+
+
 
 // 404 handler
 app.use((req: Request, res: Response) => {

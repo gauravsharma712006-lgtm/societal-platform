@@ -5,15 +5,7 @@ export interface AuthTokenPayload {
   role: string;
 }
 
-const getJwtSecret = (): string => {
-  const secret = process.env.JWT_SECRET;
-
-  if (!secret) {
-    throw new Error('JWT_SECRET is not defined');
-  }
-
-  return secret;
-};
+import { env } from '../config/env';
 
 export const generateAccessToken = (
   userId: string,
@@ -24,7 +16,7 @@ export const generateAccessToken = (
     role,
   };
 
-  return jwt.sign(payload, getJwtSecret(), {
-    expiresIn: '15m',
-  });
-};
+ return jwt.sign(payload, env.JWT_SECRET, {
+    expiresIn: '7d',
+});
+}

@@ -21,6 +21,9 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   logout: () => void;
+
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (...roles: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -37,33 +40,41 @@ export const AuthProvider = ({
   const isAuthenticated = user !== null;
 
   const logout = () => {
-  auth.removeToken();
-  setUser(null);
-};
-
-  useEffect(() => {
-  const restoreSession = async () => {
-    const token = auth.getToken();
-
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const result = await api.getMe();
-
-      setUser(result.data);
-    } catch (error) {
-      auth.removeToken();
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
+    auth.removeToken();
+    setUser(null);
   };
 
-  restoreSession();
-}, []);
+  const hasRole = (role: string): boolean => {
+    return user?.role === role;
+  };
+
+  const hasAnyRole = (...roles: string[]): boolean => {
+    return user !== null && roles.includes(user.role);
+  };
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = auth.getToken();
+
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const result = await api.getMe();
+
+        setUser(result.data);
+      } catch (error) {
+        auth.removeToken();
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -73,6 +84,8 @@ export const AuthProvider = ({
         isLoading,
         isAuthenticated,
         logout,
+        hasRole,
+        hasAnyRole,
       }}
     >
       {children}
