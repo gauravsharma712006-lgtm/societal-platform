@@ -21,6 +21,18 @@ function Signup() {
 
         setMessage('');
         setError('');
+        if (name.trim().length < 2) {
+            setError('Name must be at least 2 characters.');
+            return;
+        }
+        if (password.length < 12) {
+            setError('Password must be at least 12 characters.');
+            return;
+        }
+        if (new TextEncoder().encode(password).length > 72) {
+            setError('Password must not exceed 72 UTF-8 bytes. Use fewer characters.');
+            return;
+        }
         setLoading(true);
 
         try {
@@ -75,6 +87,9 @@ function Signup() {
 
                         <input
                             type="text"
+                            minLength={2}
+                            maxLength={100}
+                            autoComplete="name"
                             value={name}
                             onChange={(event) =>
                                 setName(event.target.value)
@@ -92,6 +107,7 @@ function Signup() {
 
                         <input
                             type="email"
+                            autoComplete="email"
                             value={email}
                             onChange={(event) =>
                                 setEmail(event.target.value)
@@ -111,6 +127,9 @@ function Signup() {
 
                         <input
                             type="password"
+                            minLength={12}
+                            maxLength={100}
+                            autoComplete="new-password"
                             value={password}
                             onChange={(event) =>
                                 setPassword(event.target.value)

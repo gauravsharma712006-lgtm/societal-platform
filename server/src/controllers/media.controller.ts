@@ -1,8 +1,14 @@
 import { Response } from 'express';
 import crypto from 'crypto';
+import { logError } from '../utils/log-error';
 
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
-import { createDownloadUrl, createUploadUrl, verifyObjectExists } from '../services/media.service';
+import {
+    createDownloadUrl,
+    createUploadUrl,
+    getObjectMetadata,
+    validateImageContent,
+} from '../services/media.service';
 import { Problem } from '../models/problem.model';
 import { addProblemMedia } from '../services/problem.service';
 
@@ -38,7 +44,10 @@ export const addProblemMediaController = async (
 
         const expectedPrefix = `problems/${problemId}/`;
 
-        if (!key.startsWith(expectedPrefix)) {
+        const storageName = typeof key === 'string' && key.startsWith(expectedPrefix)
+            ? key.slice(expectedPrefix.length) : '';
+        if (!storageName || storageName.includes('/') || storageName.includes('\\') ||
+            storageName === '.' || storageName === '..') {
             res.status(400).json({
                 status: 'error',
                 message: 'Invalid media key',
@@ -46,12 +55,49 @@ export const addProblemMediaController = async (
             return;
         }
 
-        const objectExists = await verifyObjectExists(key);
+        const ownedProblem = await Problem.findOne({
+            _id: problemId,
+            reportedBy: req.user.userId,
+        });
 
-        if (!objectExists) {
+        if (!ownedProblem) {
+            res.status(404).json({
+                status: 'error',
+                message: 'Problem not found',
+            });
+            return;
+        }
+
+        const metadata = await getObjectMetadata(key);
+
+        if (!metadata) {
             res.status(400).json({
                 status: 'error',
                 message: 'Uploaded media was not found in storage',
+            });
+            return;
+        }
+
+        if (
+            metadata.contentType !== contentType ||
+            metadata.size !== size
+        ) {
+            res.status(400).json({
+                status: 'error',
+                message: 'Uploaded file metadata does not match the submitted metadata',
+            });
+            return;
+        }
+
+        const isValidImage = await validateImageContent(
+            key,
+            contentType
+        );
+
+        if (!isValidImage) {
+            res.status(400).json({
+                status: 'error',
+                message: 'File content does not match a supported image format',
             });
             return;
         }
@@ -72,6 +118,14 @@ export const addProblemMediaController = async (
             data: problem,
         });
     } catch (error) {
+        if (error instanceof Error && error.message === 'MEDIA_STORAGE_UNAVAILABLE') {
+            res.status(503).json({
+                status: 'error',
+                message: 'Media storage is temporarily unavailable. Please try again.',
+            });
+            return;
+        }
+
         if (
             error instanceof Error &&
             error.message === 'PROBLEM_NOT_FOUND'
@@ -84,7 +138,7 @@ export const addProblemMediaController = async (
             return;
         }
 
-        console.error(
+        logError(
             'Add problem media error:',
             error
         );
@@ -113,30 +167,42 @@ export const createDownloadUrlController = async (
 
         const { problemId, key } = req.body;
 
-        const problem = await Problem.findOne({
-            _id: problemId,
-            reportedBy: req.user.userId,
-        });
+        const problem = await Problem.findById(problemId);
 
-        if (!problem) {
-            res.status(404).json({
-                status: 'error',
-                message: 'Problem not found',
-            });
-            return;
-        }
 
-        const mediaExists = problem.media.some(
-            (media) => media.key === key
-        );
 
-        if (!mediaExists) {
-            res.status(404).json({
-                status: 'error',
-                message: 'Media not found',
-            });
-            return;
-        }
+if (!problem) {
+  res.status(404).json({
+    status: 'error',
+    message: 'Problem not found',
+  });
+  return;
+}
+
+const isOwner =
+  problem.reportedBy.toString() === req.user!.userId;
+
+const isAdmin = req.user!.role === 'ADMIN';
+
+if (!isOwner && !isAdmin) {
+   res.status(404).json({
+    status: 'error',
+    message: 'Problem or media not found',
+  });
+  return
+}
+
+const media = problem.media.find(
+  (item) => item.key === key
+);
+
+if (!media) {
+   res.status(404).json({
+    status: 'error',
+    message: 'Problem or media not found',
+  });
+  return
+}
 
         const downloadUrl = await createDownloadUrl(key);
 
@@ -147,7 +213,11 @@ export const createDownloadUrlController = async (
             },
         });
     } catch (error) {
-        console.error('Create download URL error:', error);
+        if (error instanceof Error && error.message === 'MEDIA_STORAGE_UNAVAILABLE') {
+            res.status(503).json({ status: 'error', message: 'Media storage is temporarily unavailable. Please try again.' });
+            return;
+        }
+        logError('Create download URL error:', error);
 
         res.status(500).json({
             status: 'error',
@@ -217,7 +287,8 @@ export const createUploadUrlController = async (
 
         const uploadUrl = await createUploadUrl(
             key,
-            contentType
+            contentType,
+            size
         );
 
         res.status(200).json({
@@ -231,7 +302,11 @@ export const createUploadUrlController = async (
             },
         });
     } catch (error) {
-        console.error(
+        if (error instanceof Error && error.message === 'MEDIA_STORAGE_UNAVAILABLE') {
+            res.status(503).json({ status: 'error', message: 'Media storage is temporarily unavailable. Please try again.' });
+            return;
+        }
+        logError(
             'Create upload URL error:',
             error
         );

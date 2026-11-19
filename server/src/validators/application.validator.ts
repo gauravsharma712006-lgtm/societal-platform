@@ -1,9 +1,9 @@
 import { z } from 'zod';
+import { mongoObjectIdSchema } from './common.validator';
 
 export const createApplicationSchema = z.object({
-    challenge: z
-        .string()
-        .min(1),
+challenge: mongoObjectIdSchema,        
+        
 
     motivation: z
         .string()
@@ -40,7 +40,7 @@ export const reviewApplicationSchema = z
     .superRefine((data, ctx) => {
         if (
             data.status === 'REJECTED' &&
-            !data.reviewNote
+            !data.reviewNote?.trim()
         ) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -50,3 +50,12 @@ export const reviewApplicationSchema = z
             });
         }
     });
+
+    
+export const challengeApplicationsParamSchema = z.object({
+    challengeId: mongoObjectIdSchema,
+});
+
+export const reviewApplicationParamSchema = z.object({
+    applicationId: mongoObjectIdSchema,
+});

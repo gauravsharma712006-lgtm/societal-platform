@@ -30,6 +30,20 @@ export const createTeamController = async (
             },
         });
     } catch (error) {
+        if (error instanceof Error && error.message === 'CHALLENGE_DEADLINE_PASSED') {
+            return res.status(400).json({
+                status: 'error',
+                message: 'The challenge deadline has passed. Teams can no longer be created.',
+            });
+        }
+
+        if (error instanceof Error && error.message === 'APPLICATION_NOT_ACCEPTED') {
+            return res.status(403).json({
+                status: 'error',
+                message: 'An accepted application is required to create a team for this challenge',
+            });
+        }
+
         if (
             error instanceof Error &&
             error.message ===
@@ -78,7 +92,9 @@ export const getTeamByIdController = async (
 ) => {
     try {
         const team = await getTeamById(
-            req.params.teamId
+            req.params.teamId,
+            req.user!.userId,
+            req.user!.role === 'ADMIN'
         );
 
         return res.status(200).json({
@@ -98,6 +114,16 @@ export const getTeamByIdController = async (
             });
         }
 
+        if (
+            error instanceof Error &&
+            error.message === 'NOT_A_TEAM_MEMBER'
+        ) {
+            return res.status(403).json({
+                status: 'error',
+                message: 'You are not authorized to view this team',
+            });
+        }
+
         return res.status(500).json({
             status: 'error',
             message: 'Internal server error',
@@ -112,7 +138,9 @@ export const getTeamMembersController = async (
 ) => {
     try {
         const members = await getTeamMembers(
-            req.params.teamId
+            req.params.teamId,
+            req.user!.userId,
+            req.user!.role === 'ADMIN'
         );
 
         return res.status(200).json({
@@ -129,6 +157,16 @@ export const getTeamMembersController = async (
             return res.status(404).json({
                 status: 'error',
                 message: 'Team not found',
+            });
+        }
+
+        if (
+            error instanceof Error &&
+            error.message === 'NOT_A_TEAM_MEMBER'
+        ) {
+            return res.status(403).json({
+                status: 'error',
+                message: 'You are not authorized to view this team',
             });
         }
 

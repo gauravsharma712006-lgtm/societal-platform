@@ -45,7 +45,7 @@ New challenges are created with status `DRAFT`.
 
 `GET /api/challenges` — any authenticated user
 
-Returns `OPEN`, `IN_PROGRESS`, and `COMPLETED` challenges (excludes `DRAFT` and `CANCELLED`), newest first, populated with `problem` and `createdBy`.
+Returns `OPEN`, `CLOSED`, `IN_PROGRESS`, and `COMPLETED` challenges to non-admin users. Admins receive all statuses, including drafts and cancelled challenges, so they can manage the lifecycle. Results are newest first, populated with `problem` and `createdBy`.
 
 **Response `200 OK`** — `{ "status": "success", "data": { "challenges": [ ... ] } }`
 
@@ -53,7 +53,9 @@ Returns `OPEN`, `IN_PROGRESS`, and `COMPLETED` challenges (excludes `DRAFT` and 
 
 `GET /api/challenges/:challengeId` — any authenticated user
 
-- `404 Not Found` — missing, or status is `DRAFT`/`CANCELLED`
+- `404 Not Found` — missing, or status is `DRAFT`/`CANCELLED` for a non-admin user. Admins can inspect any status.
+
+Existing active teams may submit solutions while the challenge is `OPEN` or `IN_PROGRESS`. Closing applications does not reopen team formation; `CLOSED`, `COMPLETED`, and `CANCELLED` challenges reject solution submissions.
 
 ## Update status
 

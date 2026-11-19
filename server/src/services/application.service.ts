@@ -38,6 +38,8 @@ export const createApplication = async (
         );
     }
 
+   
+try {
     const application = await Application.create({
         challenge: challenge._id,
         applicant: new mongoose.Types.ObjectId(
@@ -49,6 +51,20 @@ export const createApplication = async (
     });
 
     return application;
+
+} catch (error) {
+    if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 11000
+    ) {
+        throw new Error('APPLICATION_ALREADY_EXISTS');
+    }
+
+    throw error;
+}
+
+
 };
 
 

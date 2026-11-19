@@ -35,6 +35,10 @@ export const createTeamInvitation = async (
         throw new Error('CHALLENGE_NOT_OPEN');
     }
 
+    if (challenge.deadline.getTime() <= Date.now()) {
+        throw new Error('CHALLENGE_DEADLINE_PASSED');
+    }
+
     const invitedUser = await User.findById(
         invitedUserId
     );
@@ -116,117 +120,134 @@ export const respondToTeamInvitation = async (
     studentId: string,
     status: 'ACCEPTED' | 'REJECTED'
 ) => {
-    const invitation =
-        await TeamInvitation.findById(
-            invitationId
-        );
+    const session = await mongoose.startSession();
 
-    if (!invitation) {
-        throw new Error(
-            'INVITATION_NOT_FOUND'
-        );
-    }
+    try {
+        let result: typeof TeamInvitation.prototype | null = null;
 
-    if (
-        invitation.invitedUser.toString() !==
-        studentId
-    ) {
-        throw new Error(
-            'NOT_INVITED_STUDENT'
-        );
-    }
+        await session.withTransaction(async () => {
+            const invitation =
+                await TeamInvitation.findById(
+                    invitationId
+                ).session(session);
 
-    if (invitation.status !== 'PENDING') {
-        throw new Error(
-            'INVITATION_ALREADY_RESPONDED'
-        );
-    }
+            if (!invitation) {
+                throw new Error('INVITATION_NOT_FOUND');
+            }
 
-    const team = await Team.findById(
-        invitation.team
-    );
-
-    if (!team) {
-        throw new Error('TEAM_NOT_FOUND');
-    }
-
-    if (team.status !== 'ACTIVE') {
-        throw new Error('TEAM_NOT_ACTIVE');
-    }
-
-    const challenge = await Challenge.findById(
-        team.challenge
-    );
-
-    if (!challenge) {
-        throw new Error(
-            'CHALLENGE_NOT_FOUND'
-        );
-    }
-
-    if (challenge.status !== 'OPEN') {
-        throw new Error(
-            'CHALLENGE_NOT_OPEN'
-        );
-    }
-
-    if (status === 'REJECTED') {
-        invitation.status = 'REJECTED';
-        invitation.respondedAt = new Date();
-
-        await invitation.save();
-
-        return invitation;
-    }
-
-    const existingMemberships =
-        await TeamMember.find({
-            user: new mongoose.Types.ObjectId(
+            if (
+                invitation.invitedUser.toString() !==
                 studentId
-            ),
-        }).populate('team');
+            ) {
+                throw new Error('NOT_INVITED_STUDENT');
+            }
 
-    const alreadyInSameChallenge =
-        existingMemberships.some(
-            (membership) => {
-                if (!membership.team) {
-                    return false;
-                }
-
-                const populatedTeam =
-                    membership.team as unknown as {
-                        challenge:
-                            mongoose.Types.ObjectId;
-                    };
-
-                return (
-                    populatedTeam.challenge.toString() ===
-                    team.challenge.toString()
+            if (invitation.status !== 'PENDING') {
+                throw new Error(
+                    'INVITATION_ALREADY_RESPONDED'
                 );
             }
-        );
 
-    if (alreadyInSameChallenge) {
-        throw new Error(
-            'ALREADY_IN_TEAM_FOR_CHALLENGE'
-        );
+            const team = await Team.findById(
+                invitation.team
+            ).session(session);
+
+            if (!team) {
+                throw new Error('TEAM_NOT_FOUND');
+            }
+
+            if (team.status !== 'ACTIVE') {
+                throw new Error('TEAM_NOT_ACTIVE');
+            }
+
+            const challenge = await Challenge.findById(
+                team.challenge
+            ).session(session);
+
+            if (!challenge) {
+                throw new Error('CHALLENGE_NOT_FOUND');
+            }
+
+            if (challenge.status !== 'OPEN') {
+                throw new Error('CHALLENGE_NOT_OPEN');
+            }
+
+            if (status === 'ACCEPTED') {
+                if (challenge.deadline.getTime() <= Date.now()) {
+                    throw new Error('CHALLENGE_DEADLINE_PASSED');
+                }
+
+                const existingMemberships =
+                    await TeamMember.find({
+                        user: new mongoose.Types.ObjectId(
+                            studentId
+                        ),
+                    })
+                        .populate('team')
+                        .session(session);
+
+                const alreadyInSameChallenge =
+                    existingMemberships.some(
+                        (membership) => {
+                            if (!membership.team) {
+                                return false;
+                            }
+
+                            const populatedTeam =
+                                membership.team as unknown as {
+                                    challenge:
+                                        mongoose.Types.ObjectId;
+                                };
+
+                            return (
+                                populatedTeam.challenge.toString() ===
+                                team.challenge.toString()
+                            );
+                        }
+                    );
+
+                if (alreadyInSameChallenge) {
+                    throw new Error(
+                        'ALREADY_IN_TEAM_FOR_CHALLENGE'
+                    );
+                }
+
+                await TeamMember.create(
+                    [
+                        {
+                            team: team._id,
+                            user:
+                                new mongoose.Types.ObjectId(
+                                    studentId
+                                ),
+                            role: 'MEMBER',
+                        },
+                    ],
+                    { session }
+                );
+            }
+
+            invitation.status = status;
+            invitation.respondedAt = new Date();
+
+            await invitation.save({ session });
+
+            result = invitation;
+        });
+
+        if (!result) {
+            throw new Error(
+                'INVITATION_RESPONSE_FAILED'
+            );
+        }
+
+        return result;
+    } finally {
+        await session.endSession();
     }
-
-    await TeamMember.create({
-        team: team._id,
-        user: new mongoose.Types.ObjectId(
-            studentId
-        ),
-        role: 'MEMBER',
-    });
-
-    invitation.status = 'ACCEPTED';
-    invitation.respondedAt = new Date();
-
-    await invitation.save();
-
-    return invitation;
 };
+
+
 
 
 
@@ -235,25 +256,24 @@ export const respondToTeamInvitation = async (
 export const getMyTeamInvitations = async (
     studentId: string
 ) => {
-    const invitations =
-        await TeamInvitation.find({
-            invitedUser:
-                new mongoose.Types.ObjectId(
-                    studentId
-                ),
+    const invitations = await TeamInvitation.find({
+        invitedUser: new mongoose.Types.ObjectId(studentId),
+    })
+        .populate({
+            path: 'team',
+            select: 'name description challenge status',
+            populate: {
+                path: 'challenge',
+                select: 'title status deadline',
+            },
         })
-            .populate(
-                'team',
-                'name description challenge status'
-            )
-            .populate(
-                'invitedBy',
-                'name email role'
-            )
-            .sort({ createdAt: -1 });
+        .populate('invitedBy', 'name email role')
+        .sort({ createdAt: -1 });
 
     return invitations;
 };
+
+
 
 
 export const getMyTeams = async (

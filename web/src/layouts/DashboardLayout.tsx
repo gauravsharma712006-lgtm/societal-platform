@@ -15,10 +15,9 @@ const DashboardLayout = () => {
     }: {
         isActive: boolean;
     }) =>
-        `flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-            isActive
-                ? 'bg-purple-600 text-white'
-                : 'text-gray-400 hover:bg-white/10 hover:text-white'
+        `flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive
+            ? 'bg-purple-600 text-white'
+            : 'text-gray-400 hover:bg-white/10 hover:text-white'
         }`;
 
     const closeMobileMenu = () => {
@@ -54,10 +53,9 @@ const DashboardLayout = () => {
                     transition-transform
                     duration-300
                     lg:translate-x-0
-                    ${
-                        mobileOpen
-                            ? 'translate-x-0'
-                            : '-translate-x-full'
+                    ${mobileOpen
+                        ? 'translate-x-0'
+                        : '-translate-x-full'
                     }
                 `}
             >
@@ -105,15 +103,30 @@ const DashboardLayout = () => {
                             'MENTOR',
                             'ADMIN'
                         ) && (
-                            <NavLink
-                                to="/challenges"
-                                className={navItemClass}
-                                onClick={closeMobileMenu}
-                            >
-                                <span>◇</span>
-                                <span>Challenges</span>
-                            </NavLink>
-                        )}
+                                <NavLink
+                                    to="/challenges"
+                                    className={navItemClass}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <span>◇</span>
+                                    <span>Challenges</span>
+                                </NavLink>
+                            )}
+
+                        {hasAnyRole(
+                            'STUDENT',
+                            'MENTOR',
+                            'ADMIN'
+                        ) && (
+                                <NavLink
+                                    to="/solutions"
+                                    className={navItemClass}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <span>✦</span>
+                                    <span>Solutions</span>
+                                </NavLink>
+                            )}
 
                         {hasAnyRole('STUDENT') && (
                             <>
@@ -150,15 +163,15 @@ const DashboardLayout = () => {
                             'ADMIN',
                             'MENTOR'
                         ) && (
-                            <NavLink
-                                to="/teams"
-                                className={navItemClass}
-                                onClick={closeMobileMenu}
-                            >
-                                <span>♟</span>
-                                <span>Teams</span>
-                            </NavLink>
-                        )}
+                                <NavLink
+                                    to="/teams"
+                                    className={navItemClass}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <span>♟</span>
+                                    <span>Teams</span>
+                                </NavLink>
+                            )}
 
                         {/* Admin section */}
                         {hasAnyRole('ADMIN') && (
@@ -180,22 +193,14 @@ const DashboardLayout = () => {
                                     </NavLink>
 
                                     <NavLink
-                                        to="/reports"
+                                        to="/admin/solution-reviews"
                                         className={navItemClass}
                                         onClick={closeMobileMenu}
                                     >
-                                        <span>▣</span>
-                                        <span>Reports</span>
+                                        <span>✦</span>
+                                        <span>Solution Reviews</span>
                                     </NavLink>
 
-                                    <NavLink
-                                        to="/analytics"
-                                        className={navItemClass}
-                                        onClick={closeMobileMenu}
-                                    >
-                                        <span>▥</span>
-                                        <span>Analytics</span>
-                                    </NavLink>
 
                                 </div>
                             </div>
@@ -243,6 +248,8 @@ const DashboardLayout = () => {
                     <div className="flex items-center justify-between px-5 py-4 lg:px-8">
 
                         <button
+                            aria-label="Open navigation menu"
+                            aria-expanded={mobileOpen}
                             onClick={() =>
                                 setMobileOpen(true)
                             }

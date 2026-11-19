@@ -11,6 +11,8 @@ import Teams from '../pages/Teams';
 import Reports from '../pages/Reports';
 import Verification from '../pages/Verification';
 import Analytics from '../pages/Analytics';
+import AdminApplications from '../pages/AdminApplications';
+
 
 import ProtectedRoute from './ProtectedRoute';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -18,6 +20,9 @@ import { ROLES } from '../constants/roles';
 import ChallengeDetails from '../pages/ChallengeDetails';
 import Invitations from '../pages/Invitations';
 import TeamDetails from '../pages/TeamDetails';
+import Solutions from '../pages/Solutions';
+import SolutionDetails from '../pages/SolutionDetails';
+import SolutionReviews from '../pages/SolutionReviews';
 
 function AppRouter() {
     return (
@@ -81,6 +86,29 @@ function AppRouter() {
                     }
                 />
 
+                <Route
+                    path="/solutions"
+                    element={
+                        <ProtectedRoute allowedRoles={['STUDENT', 'MENTOR', 'ADMIN']}>
+                            <Solutions />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/solutions/:solutionId"
+                    element={
+                        <ProtectedRoute
+                            allowedRoles={[
+                                ROLES.STUDENT,
+                                ROLES.MENTOR,
+                                ROLES.ADMIN,
+                            ]}
+                        >
+                            <SolutionDetails />
+                        </ProtectedRoute>
+                    }
+                />
+
 
                 {/* Student only */}
 
@@ -116,6 +144,18 @@ function AppRouter() {
 
                 {/* Admin only */}
 
+
+                <Route
+                    path="/challenges/:challengeId/applications"
+                    element={
+                        <ProtectedRoute
+                            allowedRoles={[ROLES.ADMIN]}
+                        >
+                            <AdminApplications />
+                        </ProtectedRoute>
+                    }
+                />
+
                 <Route
                     path="/reports"
                     element={
@@ -139,6 +179,15 @@ function AppRouter() {
                 />
 
                 <Route
+                path="/admin/solution-reviews"
+                element={
+                    <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                        <SolutionReviews />
+                    </ProtectedRoute>
+                }
+            />
+
+                <Route
                     path="/analytics"
                     element={
                         <ProtectedRoute
@@ -149,8 +198,48 @@ function AppRouter() {
                     }
                 />
 
-            </Route>
+                <Route
+                    path="/challenges/:challengeId"
+                    element={
+                        <ProtectedRoute
+                            allowedRoles={[
+                                ROLES.STUDENT,
+                                ROLES.MENTOR,
+                                ROLES.ADMIN,
+                            ]}
+                        >
+                            <ChallengeDetails />
+                        </ProtectedRoute>
+                    }
+                />
 
+                <Route
+                    path="/invitations"
+                    element={
+                        <ProtectedRoute
+                            allowedRoles={[ROLES.STUDENT]}
+                        >
+                            <Invitations />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/teams/:teamId"
+                    element={
+                        <ProtectedRoute
+                            allowedRoles={[
+                                ROLES.STUDENT,
+                                ROLES.MENTOR,
+                                ROLES.ADMIN,
+                            ]}
+                        >
+                            <TeamDetails />
+                        </ProtectedRoute>
+                    }
+                />
+
+            </Route>
 
             {/* Unknown routes */}
 
@@ -164,52 +253,9 @@ function AppRouter() {
                 }
             />
 
-            <Route
-                path="/challenges/:challengeId"
-                element={
-                    <ProtectedRoute
-                        allowedRoles={[
-                            ROLES.STUDENT,
-                            ROLES.MENTOR,
-                            ROLES.ADMIN,
-                        ]}
-                    >
-                        <ChallengeDetails />
-                    </ProtectedRoute>
-                }
-            />
-
-            <Route
-                path="/invitations"
-                element={
-                    <ProtectedRoute
-                        allowedRoles={[ROLES.STUDENT]}
-                    >
-                        <Invitations />
-                    </ProtectedRoute>
-                }
-            />
-
-            <Route
-                path="/teams/:teamId"
-                element={
-                    <ProtectedRoute
-                        allowedRoles={[
-                            ROLES.STUDENT,
-                            ROLES.MENTOR,
-                            ROLES.ADMIN,
-                        ]}
-                    >
-                        <TeamDetails />
-                    </ProtectedRoute>
-                }
-            />
-
         </Routes>
-
-
 
     );
 }
 
-export default AppRouter;
+export default AppRouter;

@@ -1,3 +1,4 @@
+
 import mongoose, { Document, Schema, model } from 'mongoose';
 
 import {
@@ -9,27 +10,48 @@ import {
     ProblemStatus,
 } from '../constants/problem';
 
+// ==========================================
+// Evidence Request Interface
+// ==========================================
 
+export interface IEvidenceRequest {
+    _id?: mongoose.Types.ObjectId;
+    message: string;
+    requestedBy: mongoose.Types.ObjectId;
+    status: 'PENDING' | 'RESPONDED';
+    requestedAt: Date;
+    respondedAt?: Date;
+    responseMediaKeys: string[];
+}
+
+// ==========================================
+// Problem Interface
+// ==========================================
 
 export interface IProblem extends Document {
     title: string;
     description: string;
-    category: ProblemCategory;
+
+    // Legacy category (temporary compatibility)
+    category: ProblemCategory | null;
+
+    // New dynamic category reference
+    categoryId: mongoose.Types.ObjectId | null;
 
     location: {
         address: string;
         city: string;
         state: string;
         coordinates?: {
-            latitude: number;
-            longitude: number;
+            type: 'Point';
+            coordinates: [number, number]; // [longitude, latitude]
         };
     };
 
     status: ProblemStatus;
     priority: ProblemPriority;
 
-    reportedBy: Schema.Types.ObjectId;
+    reportedBy: mongoose.Types.ObjectId;
 
     media: {
         key: string;
@@ -39,17 +61,72 @@ export interface IProblem extends Document {
     }[];
 
     history: {
-    action: 'STATUS_CHANGED' | 'PRIORITY_CHANGED';
-    from: string;
-    to: string;
-changedBy: mongoose.Types.ObjectId;    reason?: string;
+        action:
+            | 'STATUS_CHANGED'
+            | 'PRIORITY_CHANGED'
+            | 'EVIDENCE_REQUESTED';
+        from: string;
+        to: string;
+        changedBy: mongoose.Types.ObjectId;
+        reason?: string;
+    }[];
 
-}[];
+    evidenceRequests: IEvidenceRequest[];
 
     createdAt: Date;
     updatedAt: Date;
 }
 
+// ==========================================
+// Evidence Request Schema
+// ==========================================
+
+const evidenceRequestSchema = new Schema<IEvidenceRequest>(
+    {
+        message: {
+            type: String,
+            required: true,
+            trim: true,
+            minlength: 5,
+            maxlength: 1000,
+        },
+
+        requestedBy: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
+        },
+
+        status: {
+            type: String,
+            enum: ['PENDING', 'RESPONDED'],
+            default: 'PENDING',
+            required: true,
+        },
+
+        requestedAt: {
+            type: Date,
+            default: Date.now,
+            required: true,
+        },
+
+        respondedAt: {
+            type: Date,
+        },
+
+        responseMediaKeys: {
+            type: [String],
+            default: [],
+        },
+    },
+    {
+        _id: true,
+    }
+);
+
+// ==========================================
+// Problem History Schema
+// ==========================================
 
 const problemHistorySchema = new Schema(
     {
@@ -58,6 +135,7 @@ const problemHistorySchema = new Schema(
             enum: [
                 'STATUS_CHANGED',
                 'PRIORITY_CHANGED',
+                'EVIDENCE_REQUESTED',
             ],
             required: true,
         },
@@ -90,7 +168,38 @@ const problemHistorySchema = new Schema(
     }
 );
 
+// ==========================================
+// GeoJSON Coordinates Schema
+// ==========================================
 
+const coordinatesSchema = new Schema(
+    {
+        type: {
+            type: String,
+            enum: ['Point'],
+            required: true,
+        },
+
+        coordinates: {
+            type: [Number],
+            required: true,
+            validate: {
+                validator: (value: number[]) =>
+                    Array.isArray(value) &&
+                    value.length === 2,
+                message:
+                    'GeoJSON coordinates must contain longitude and latitude.',
+            },
+        },
+    },
+    {
+        _id: false,
+    }
+);
+
+// ==========================================
+// Problem Schema
+// ==========================================
 
 const problemSchema = new Schema<IProblem>(
     {
@@ -110,10 +219,18 @@ const problemSchema = new Schema<IProblem>(
             maxlength: 5000,
         },
 
+        // Legacy category field
         category: {
             type: String,
             enum: PROBLEM_CATEGORIES,
-            required: true,
+            default: null,
+        },
+
+        // New dynamic category reference
+        categoryId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Category',
+            default: null,
         },
 
         location: {
@@ -121,27 +238,23 @@ const problemSchema = new Schema<IProblem>(
                 type: String,
                 required: true,
                 trim: true,
-                maxlength: 300,
             },
+
             city: {
                 type: String,
                 required: true,
                 trim: true,
-                maxlength: 100,
             },
+
             state: {
                 type: String,
                 required: true,
                 trim: true,
-                maxlength: 100,
             },
+
             coordinates: {
-                latitude: {
-                    type: Number,
-                },
-                longitude: {
-                    type: Number,
-                },
+                type: coordinatesSchema,
+                required: false,
             },
         },
 
@@ -165,11 +278,10 @@ const problemSchema = new Schema<IProblem>(
             required: true,
         },
 
-
-         history: {
-    type: [problemHistorySchema],
-    default: [],
-},
+        history: {
+            type: [problemHistorySchema],
+            default: [],
+        },
 
         media: [
             {
@@ -177,33 +289,37 @@ const problemSchema = new Schema<IProblem>(
                     type: String,
                     required: true,
                 },
+
                 originalName: {
                     type: String,
                     required: true,
                 },
+
                 contentType: {
                     type: String,
                     required: true,
                 },
+
                 size: {
                     type: Number,
                     required: true,
                 },
             },
         ],
+
+        evidenceRequests: {
+            type: [evidenceRequestSchema],
+            default: [],
+        },
     },
-
-
     {
         timestamps: true,
     }
 );
 
-
-
-
-
-
+// ==========================================
+// Model Export
+// ==========================================
 
 export const Problem = model<IProblem>(
     'Problem',

@@ -1,6 +1,9 @@
 import { Problem } from '../models/problem.model';
 import { CreateProblemInput } from '../validators/problem.validator';
 import mongoose, { Schema, Document } from 'mongoose';
+import { Category } from '../models/category.model';
+import { PROBLEM_CATEGORIES } from '../constants/problem';
+
 
 
 
@@ -8,23 +11,146 @@ export const createProblem = async (
     data: CreateProblemInput,
     userId: string
 ) => {
-    const problem = await Problem.create({
-        ...data,
+    // =====================================
+    // 1. Legacy category compatibility
+    // =====================================
+
+    if (!data.categoryId) {
+        if (!data.category) {
+            throw new Error('PROBLEM_CATEGORY_REQUIRED');
+        }
+
+        return Problem.create({
+            ...data,
+            categoryId: null,
+            reportedBy: userId,
+            status: 'REPORTED',
+        });
+    }
+
+    // =====================================
+    // 2. Dynamic category validation
+    // =====================================
+
+    const selectedCategoryId =
+        new mongoose.Types.ObjectId(data.categoryId);
+
+    const visited = new Set<string>();
+
+    let currentId: mongoose.Types.ObjectId | null =
+        selectedCategoryId;
+
+    let rootSlug: string | null = null;
+    let depth = 0;
+
+    while (currentId !== null) {
+        const idString = currentId.toString();
+
+        // Prevent circular hierarchy and
+        // categories deeper than three levels.
+        if (
+            visited.has(idString) ||
+            depth >= 3
+        ) {
+            throw new Error(
+                'PROBLEM_CATEGORY_HIERARCHY_INVALID'
+            );
+        }
+
+        visited.add(idString);
+
+
+        const currentCategory: {
+            slug: string;
+            parentId: mongoose.Types.ObjectId | null;
+            isActive: boolean;
+            isSelectable: boolean;
+        } | null = await Category.findById(currentId)
+            .select('slug parentId isActive isSelectable')
+            .lean();
+
+
+        // Check whether the category exists.
+        if (!currentCategory) {
+            throw new Error(
+                depth === 0
+                    ? 'PROBLEM_CATEGORY_NOT_FOUND'
+                    : 'PROBLEM_CATEGORY_HIERARCHY_INVALID'
+            );
+        }
+
+        // Check whether the selected category
+        // and every ancestor are active.
+        if (!currentCategory.isActive) {
+            throw new Error(
+                depth === 0
+                    ? 'PROBLEM_CATEGORY_INACTIVE'
+                    : 'PROBLEM_CATEGORY_PARENT_INACTIVE'
+            );
+        }
+
+        // Only the selected category must be
+        // selectable. Ancestors can be grouping
+        // categories with isSelectable = false.
+        if (
+            depth === 0 &&
+            !currentCategory.isSelectable
+        ) {
+            throw new Error(
+                'PROBLEM_CATEGORY_NOT_SELECTABLE'
+            );
+        }
+
+        // The last visited category is the root.
+        rootSlug = currentCategory.slug;
+
+        // Move up the hierarchy.
+        currentId = currentCategory.parentId ?? null;
+
+        depth++;
+    }
+
+    // =====================================
+    // 3. Legacy category mapping
+    // =====================================
+
+    const legacyCategory =
+        PROBLEM_CATEGORIES.find(
+            (value) => value === rootSlug
+        ) ?? null;
+
+    // =====================================
+    // 4. Create Problem
+    // =====================================
+
+    return Problem.create({
+        title: data.title,
+        description: data.description,
+        location: data.location,
+        priority: data.priority,
+
+        category: legacyCategory,
+        categoryId: selectedCategoryId,
+
         reportedBy: userId,
         status: 'REPORTED',
     });
-
-    return problem;
 };
 
 
 
-export const getProblems = async () => {
-    const problems = await Problem.find()
-        .sort({ createdAt: -1 })
-        .populate('reportedBy', 'name email');
 
-    return problems;
+export const getProblems = async (
+    userId: string,
+    role: string
+) => {
+    const filter = role === 'ADMIN'
+        ? {}
+        : { reportedBy: userId };
+
+    return Problem.find(filter)
+        .sort({ createdAt: -1 })
+        .populate('reportedBy', 'name');
 };
 
 
@@ -44,6 +170,7 @@ export const addProblemMedia = async (
         {
             _id: problemId,
             reportedBy: userId,
+            'media.key': { $ne: media.key },
         },
         {
             $push: {
@@ -52,11 +179,22 @@ export const addProblemMedia = async (
         },
         {
             new: true,
+            runValidators: true,
         }
     );
 
     if (!problem) {
-        throw new Error('PROBLEM_NOT_FOUND');
+        const existingProblem = await Problem.findOne({
+            _id: problemId,
+            reportedBy: userId,
+            'media.key': media.key,
+        });
+
+        if (!existingProblem) {
+            throw new Error('PROBLEM_NOT_FOUND');
+        }
+
+        return existingProblem;
     }
 
     return problem;
@@ -172,5 +310,107 @@ export const getProblemHistory = async (
     );
 
     return problem.history;
+};
+
+
+
+export const requestAdditionalEvidence = async (
+    problemId: string,
+    adminId: string,
+    message: string
+) => {
+    const problem = await Problem.findById(problemId);
+
+    if (!problem) {
+        throw new Error('PROBLEM_NOT_FOUND');
+    }
+
+    if (
+        problem.status !== 'UNDER_REVIEW' &&
+        problem.status !== 'REPORTED'
+    ) {
+        throw new Error('INVALID_EVIDENCE_REQUEST_STATUS');
+    }
+
+    const requestedAt = new Date();
+
+    problem.evidenceRequests.push({
+        message,
+        requestedBy: new mongoose.Types.ObjectId(adminId),
+        status: 'PENDING',
+        requestedAt,
+        responseMediaKeys: [],
+    });
+    problem.history.push({
+        action: 'EVIDENCE_REQUESTED',
+        from: problem.status,
+        to: problem.status,
+        changedBy: new mongoose.Types.ObjectId(adminId),
+        reason: message,
+    });
+
+    await problem.save();
+
+    return problem;
+};
+
+
+
+export const respondToEvidenceRequest = async (
+    problemId: string,
+    requestId: string,
+    userId: string,
+    responseMediaKeys: string[]
+) => {
+    const problem = await Problem.findById(problemId);
+
+    if (!problem) {
+        throw new Error('PROBLEM_NOT_FOUND');
+    }
+
+    // Only the original reporter can respond.
+    if (problem.reportedBy.toString() !== userId) {
+        throw new Error('FORBIDDEN');
+    }
+
+    const evidenceRequest = problem.evidenceRequests.find(
+        (request) => request._id?.toString() === requestId
+    );
+
+    if (!evidenceRequest) {
+        throw new Error('EVIDENCE_REQUEST_NOT_FOUND');
+    }
+
+    if (evidenceRequest.status !== 'PENDING') {
+        throw new Error('EVIDENCE_REQUEST_ALREADY_RESPONDED');
+    }
+
+    if (!responseMediaKeys.length || responseMediaKeys.length > 10) {
+        throw new Error('INVALID_RESPONSE_MEDIA');
+    }
+
+    // Every submitted key must belong to this problem and
+    // already exist in its attached media records.
+    const attachedMediaKeys = new Set(
+        problem.media.map((media) => media.key)
+    );
+
+    const validKeys = responseMediaKeys.every(
+        (key) =>
+            key.startsWith(`problems/${problemId}/`) &&
+            attachedMediaKeys.has(key)
+    );
+
+    if (!validKeys) {
+        throw new Error('INVALID_RESPONSE_MEDIA');
+    }
+
+    evidenceRequest.status = 'RESPONDED';
+    evidenceRequest.respondedAt = new Date();
+    evidenceRequest.responseMediaKeys = [...new Set(responseMediaKeys)];
+
+    await problem.save();
+
+    return problem;
 };
 

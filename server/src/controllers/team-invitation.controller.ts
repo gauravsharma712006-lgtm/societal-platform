@@ -28,6 +28,13 @@ export const createTeamInvitationController =
                 data: { invitation },
             });
         } catch (error) {
+            if (error instanceof Error && error.message === 'CHALLENGE_DEADLINE_PASSED') {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'The challenge deadline has passed. Invitations can no longer be sent.',
+                });
+            }
+
             if (
                 error instanceof Error &&
                 error.message === 'TEAM_NOT_FOUND'
@@ -174,6 +181,13 @@ export const respondToTeamInvitationController =
                     status: 'error',
                     message:
                         'You are not allowed to respond to this invitation',
+                });
+            }
+
+            if (error instanceof Error && error.message === 'CHALLENGE_DEADLINE_PASSED') {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'The challenge deadline has passed. Invitations can no longer be accepted.',
                 });
             }
 

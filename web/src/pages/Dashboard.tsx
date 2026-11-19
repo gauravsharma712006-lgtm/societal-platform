@@ -286,7 +286,7 @@ const Dashboard = () => {
                         </Link>
 
                         <Link
-                            to="/reports"
+                            to="/challenges"
                             className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition"
                         >
                             <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
@@ -294,16 +294,16 @@ const Dashboard = () => {
                             </div>
 
                             <h2 className="text-xl font-semibold mt-5">
-                                Reports
+                                Challenges
                             </h2>
 
                             <p className="text-gray-400 mt-2">
-                                Review platform reports and activity.
+                                Manage challenges and review student applications.
                             </p>
                         </Link>
 
                         <Link
-                            to="/analytics"
+                            to="/admin/solution-reviews"
                             className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition"
                         >
                             <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
@@ -311,12 +311,11 @@ const Dashboard = () => {
                             </div>
 
                             <h2 className="text-xl font-semibold mt-5">
-                                Analytics
+                                Solution Reviews
                             </h2>
 
                             <p className="text-gray-400 mt-2">
-                                Understand platform activity and
-                                societal impact.
+                                Review team submissions and track implementation progress.
                             </p>
                         </Link>
 

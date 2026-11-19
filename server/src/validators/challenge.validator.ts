@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { mongoObjectIdSchema } from './common.validator';
 
 export const createChallengeSchema = z.object({
     title: z
@@ -13,9 +14,7 @@ export const createChallengeSchema = z.object({
         .min(20)
         .max(5000),
 
-    problem: z
-        .string()
-        .min(1),
+    problem: mongoObjectIdSchema,
 
     deadline: z
         .coerce
@@ -52,44 +51,28 @@ export const updateChallengeStatusSchema = z.object({
 
 
 
+export const challengeIdParamSchema = z.object({
+    challengeId: mongoObjectIdSchema,
+});
+
+
+
+
+
 
 export const updateChallengeSchema = z.object({
-    title: z
-        .string()
-        .trim()
-        .min(5)
-        .max(150)
-        .optional(),
-
-    description: z
-        .string()
-        .trim()
-        .min(20)
-        .max(5000)
-        .optional(),
-
-    deadline: z
-        .coerce
+    title: z.string().trim().min(5).max(150).optional(),
+    description: z.string().trim().min(20).max(5000).optional(),
+    deadline: z.coerce
         .date()
         .refine(
             (date) => date.getTime() > Date.now(),
-            {
-                message:
-                    'Deadline must be in the future',
-            }
+            { message: 'Deadline must be in the future' }
         )
         .optional(),
-
-    skills: z
-        .array(
-            z.string().trim().min(1).max(100)
-        )
-        .optional(),
-
-    eligibility: z
-        .string()
-        .trim()
-        .min(5)
-        .max(1000)
-        .optional(),
-});
+    skills: z.array(z.string().trim().min(1).max(100)).optional(),
+    eligibility: z.string().trim().min(5).max(1000).optional(),
+}).refine(
+    (data) => Object.keys(data).length > 0,
+    { message: 'At least one field must be provided for update' }
+);

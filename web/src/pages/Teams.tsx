@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 interface Challenge {
     _id: string;
@@ -26,11 +27,14 @@ interface TeamMembership {
 }
 
 const Teams = () => {
+    const { hasRole } = useAuth();
+    const canCreateTeam = hasRole('STUDENT');
     const [teams, setTeams] =
         useState<TeamMembership[]>([]);
 
     const [challenges, setChallenges] =
         useState<Challenge[]>([]);
+    const [challengesError, setChallengesError] = useState('');
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -84,17 +88,16 @@ const Teams = () => {
 
             setChallenges(openChallenges);
         } catch (error) {
-            console.error(
-                'Failed to load challenges',
-                error
+            setChallengesError(
+                error instanceof Error ? error.message : 'Failed to load challenges'
             );
         }
     };
 
     useEffect(() => {
         loadTeams();
-        loadChallenges();
-    }, []);
+        if (canCreateTeam) loadChallenges();
+    }, [canCreateTeam]);
 
     const resetModal = () => {
         setTeamName('');
@@ -160,7 +163,8 @@ const Teams = () => {
                 challenge: selectedChallenge,
             });
 
-            closeModal();
+            resetModal();
+            setShowCreateModal(false);
 
             await loadTeams();
         } catch (error) {
@@ -256,7 +260,7 @@ const Teams = () => {
                         </p>
                     </div>
 
-                    <button
+                    {canCreateTeam && <button
                         onClick={() => {
                             resetModal();
                             setShowCreateModal(true);
@@ -264,7 +268,7 @@ const Teams = () => {
                         className="rounded-xl bg-purple-600 px-5 py-3 text-sm font-medium transition hover:bg-purple-500"
                     >
                         + Create Team
-                    </button>
+                    </button>}
 
                 </div>
 
@@ -281,12 +285,12 @@ const Teams = () => {
                         </h2>
 
                         <p className="mx-auto mt-2 max-w-md text-gray-500">
-                            Create a team for an open challenge
-                            or accept an invitation from another
-                            student.
+                            {canCreateTeam
+                                ? 'Create a team for an open challenge or accept an invitation from another student.'
+                                : 'You are not a member of any teams.'}
                         </p>
 
-                        <button
+                        {canCreateTeam && <button
                             onClick={() => {
                                 resetModal();
                                 setShowCreateModal(true);
@@ -294,7 +298,7 @@ const Teams = () => {
                             className="mt-6 inline-flex rounded-xl bg-purple-600 px-5 py-3 text-sm font-medium transition hover:bg-purple-500"
                         >
                             Create Your Team
-                        </button>
+                        </button>}
 
                     </div>
                 )}
@@ -406,7 +410,7 @@ const Teams = () => {
                     >
 
                         <div
-                            className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#090909] shadow-2xl"
+                            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-white/10 bg-[#090909] shadow-2xl"
                             onClick={(event) =>
                                 event.stopPropagation()
                             }
@@ -441,10 +445,10 @@ const Teams = () => {
                             >
 
                                 {/* Error */}
-                                {createError && (
+                                {(createError || challengesError) && (
                                     <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
                                         <p className="text-sm text-red-400">
-                                            {createError}
+                                            {createError || challengesError}
                                         </p>
                                     </div>
                                 )}

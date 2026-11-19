@@ -1,0 +1,36 @@
+[Unit]
+Description=Societal Platform API
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=societal
+Group=societal
+WorkingDirectory=/opt/societal/current/server
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/societal/api.env
+ExecStart=/usr/bin/node dist/server.js
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+LockPersonality=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=societal-api
+
+[Install]
+WantedBy=multi-user.target

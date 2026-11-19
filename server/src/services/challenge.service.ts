@@ -27,6 +27,7 @@ export const createChallenge = async (
             $in: [
                 'DRAFT',
                 'OPEN',
+                'CLOSED',
                 'IN_PROGRESS',
             ],
         },
@@ -52,11 +53,13 @@ export const createChallenge = async (
 
 
 
-export const getChallenges = async () => {
+export const getChallenges = async (isAdmin = false) => {
     const challenges = await Challenge.find({
         status: {
             $in: [
+                ...(isAdmin ? ['DRAFT', 'CANCELLED'] : []),
                 'OPEN',
+                'CLOSED',
                 'IN_PROGRESS',
                 'COMPLETED',
             ],
@@ -72,7 +75,8 @@ export const getChallenges = async () => {
 
 
 export const getChallengeById = async (
-    challengeId: string
+    challengeId: string,
+    isAdmin = false
 ) => {
     const challenge = await Challenge.findById(
         challengeId
@@ -91,8 +95,10 @@ export const getChallengeById = async (
     }
 
     if (
-        challenge.status === 'DRAFT' ||
-        challenge.status === 'CANCELLED'
+        !isAdmin && (
+            challenge.status === 'DRAFT' ||
+            challenge.status === 'CANCELLED'
+        )
     ) {
         throw new Error('CHALLENGE_NOT_AVAILABLE');
     }

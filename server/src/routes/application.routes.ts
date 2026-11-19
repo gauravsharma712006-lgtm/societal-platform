@@ -7,6 +7,8 @@ import { validate } from '../middleware/validate.middleware';
 import {
     createApplicationSchema,
     reviewApplicationSchema,
+    challengeApplicationsParamSchema,
+    reviewApplicationParamSchema,
 } from '../validators/application.validator';
 import {
     createApplicationController,
@@ -14,6 +16,10 @@ import {
     getApplicationsForChallengeController,
     reviewApplicationController,
 } from '../controllers/application.controller';
+
+
+
+
 
 const router = Router();
 
@@ -37,6 +43,7 @@ router.get(
     '/challenge/:challengeId',
     authenticate,
     authorize('ADMIN'),
+    validate(challengeApplicationsParamSchema),
     getApplicationsForChallengeController
 );
 
@@ -44,8 +51,8 @@ router.patch(
     '/:applicationId/review',
     authenticate,
     authorize('ADMIN'),
+    validate(reviewApplicationParamSchema),
     validate(reviewApplicationSchema),
     reviewApplicationController
 );
-
 export default router;

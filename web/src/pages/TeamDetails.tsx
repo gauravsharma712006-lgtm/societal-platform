@@ -37,6 +37,17 @@ interface Member {
     joinedAt: string;
 }
 
+interface Student {
+    _id: string;
+    name: string;
+    email: string;
+}
+
+interface TeamMembership {
+    role: 'LEADER' | 'MEMBER';
+    team: string | { _id: string };
+}
+
 const TeamDetails = () => {
     const { teamId } = useParams();
 
@@ -45,6 +56,13 @@ const TeamDetails = () => {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
+    const [students, setStudents] = useState<Student[]>([]);
+    const [selectedStudent, setSelectedStudent] = useState('');
+    const [isLeader, setIsLeader] = useState(false);
+    const [sendingInvitation, setSendingInvitation] = useState(false);
+    const [invitationMessage, setInvitationMessage] = useState('');
+    const [invitationError, setInvitationError] = useState('');
 
     useEffect(() => {
         if (!teamId) {
@@ -57,6 +75,11 @@ const TeamDetails = () => {
             try {
                 setLoading(true);
                 setError('');
+                setIsLeader(false);
+                setStudents([]);
+                setSelectedStudent('');
+                setInvitationError('');
+                setInvitationMessage('');
 
                 const [teamResult, membersResult] =
                     await Promise.all([
@@ -66,6 +89,23 @@ const TeamDetails = () => {
 
                 setTeam(teamResult.data.team);
                 setMembers(membersResult.data.members);
+                const userIsLeader = await checkLeadership(teamId);
+
+                if (
+                    userIsLeader &&
+                    teamResult.data.team.status === 'ACTIVE' &&
+                    teamResult.data.team.challenge?.status === 'OPEN' &&
+                    new Date(teamResult.data.team.challenge.deadline).getTime() > Date.now()
+                ) {
+                    try {
+                        const studentsResult = await api.getStudents();
+                        setStudents(studentsResult.data.students || []);
+                    } catch (error) {
+                        setInvitationError(
+                            error instanceof Error ? error.message : 'Failed to load students for invitations.'
+                        );
+                    }
+                }
             } catch (error) {
                 setError(
                     error instanceof Error
@@ -79,6 +119,28 @@ const TeamDetails = () => {
 
         loadTeam();
     }, [teamId]);
+
+
+    const checkLeadership = async (
+        currentTeamId: string
+    ): Promise<boolean> => {
+        const result = await api.getMyTeams();
+        const memberships: TeamMembership[] =
+            result.data.teams || [];
+
+        const membership = memberships.find((item) => {
+            const membershipTeamId =
+                typeof item.team === 'string'
+                    ? item.team
+                    : item.team?._id;
+
+            return membershipTeamId === currentTeamId;
+        });
+
+        const userIsLeader = membership?.role === 'LEADER';
+        setIsLeader(userIsLeader);
+        return userIsLeader;
+    };
 
     const getStatusStyle = (
         status: Team['status']
@@ -150,6 +212,8 @@ const TeamDetails = () => {
             </div>
         );
     }
+
+
 
     return (
         <div className="min-h-screen bg-[#050505] text-white p-6">
@@ -256,6 +320,102 @@ const TeamDetails = () => {
                     {/* Members */}
                     <div className="p-8">
 
+
+                        {/* Invite Team Member */}
+                        {isLeader && team.status === 'ACTIVE' && team.challenge?.status === 'OPEN' && new Date(team.challenge.deadline).getTime() > Date.now() && (
+                            <div className="p-8 border-b border-white/10">
+                                <h2 className="text-xl font-semibold">
+                                    Invite Team Member
+                                </h2>
+
+                                <p className="text-gray-500 text-sm mt-1">
+                                    Invite an eligible student to collaborate on this challenge.
+                                </p>
+
+                                <div className="flex flex-col sm:flex-row gap-3 mt-5">
+                                    <select
+                                        value={selectedStudent}
+                                        onChange={(event) =>
+                                            setSelectedStudent(event.target.value)
+                                        }
+                                        className="flex-1 rounded-xl border border-white/10 bg-[#111] text-white p-3"
+                                    >
+                                        <option value="">Select a student</option>
+
+                                        {students
+                                            .filter(
+                                                (student) =>
+                                                    !members.some(
+                                                        (member) =>
+                                                            member.user?._id === student._id
+                                                    )
+                                            )
+                                            .map((student) => (
+                                                <option
+                                                    key={student._id}
+                                                    value={student._id}
+                                                >
+                                                    {student.name} ({student.email})
+                                                </option>
+                                            ))}
+                                    </select>
+
+                                    <button
+                                        type="button"
+                                        disabled={!selectedStudent || sendingInvitation}
+                                        onClick={async () => {
+                                            if (!teamId || !selectedStudent) return;
+
+                                            try {
+                                                setSendingInvitation(true);
+                                                setInvitationError('');
+                                                setInvitationMessage('');
+
+                                                await api.createTeamInvitation({
+                                                    team: teamId,
+                                                    invitedUser: selectedStudent,
+                                                });
+
+                                                setInvitationMessage(
+                                                    'Invitation sent successfully.'
+                                                );
+                                                setSelectedStudent('');
+                                            } catch (error) {
+                                                setInvitationError(
+                                                    error instanceof Error
+                                                        ? error.message
+                                                        : 'Failed to send invitation.'
+                                                );
+                                            } finally {
+                                                setSendingInvitation(false);
+                                            }
+                                        }}
+                                        className="rounded-xl bg-purple-600 px-5 py-3 font-medium text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {sendingInvitation ? 'Sending...' : 'Send Invitation'}
+                                    </button>
+                                </div>
+
+                                {invitationMessage && (
+                                    <p className="text-green-400 text-sm mt-3">
+                                        {invitationMessage}
+                                    </p>
+                                )}
+
+                                {invitationError && (
+                                    <p className="text-red-400 text-sm mt-3">
+                                        {invitationError}
+                                    </p>
+                                )}
+
+                                {students.length === 0 && (
+                                    <p className="text-gray-500 text-sm mt-3">
+                                        No students are currently available to invite.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
                         <div className="flex items-center justify-between">
 
                             <div>
@@ -317,7 +477,7 @@ const TeamDetails = () => {
                                         <span
                                             className={
                                                 member.role ===
-                                                'LEADER'
+                                                    'LEADER'
                                                     ? 'text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3 py-1 rounded-full text-xs'
                                                     : 'text-gray-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full text-xs'
                                             }

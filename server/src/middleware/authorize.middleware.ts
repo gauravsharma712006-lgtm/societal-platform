@@ -31,7 +31,7 @@ export const authorize = (
       });
 
       return;
-    }
+    }    
 
     next();
   };

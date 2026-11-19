@@ -90,11 +90,11 @@ export const createChallengeController = async (
 
 
 export const getChallengesController = async (
-    _req: Request,
+    req: Request,
     res: Response
 ): Promise<void> => {
     try {
-        const challenges = await getChallenges();
+        const challenges = await getChallenges(req.user!.role === 'ADMIN');
 
         res.status(200).json({
             status: 'success',
@@ -125,7 +125,7 @@ export const getChallengeByIdController = async (
         const { challengeId } = req.params;
 
         const challenge =
-            await getChallengeById(challengeId);
+            await getChallengeById(challengeId, req.user!.role === 'ADMIN');
 
         res.status(200).json({
             status: 'success',

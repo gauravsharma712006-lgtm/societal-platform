@@ -5,6 +5,7 @@ import {
     getChallengeByIdController,
     updateChallengeStatusController,
     updateChallengeController,
+
     
 } from '../controllers/challenge.controller';
 import { authenticate } from '../middleware/auth.middleware';
@@ -14,6 +15,7 @@ import {
     createChallengeSchema,
     updateChallengeStatusSchema,
     updateChallengeSchema,
+    challengeIdParamSchema,
 } from '../validators/challenge.validator';
 
 
@@ -38,6 +40,7 @@ router.get(
 router.get(
     '/:challengeId',
     authenticate,
+    validate(challengeIdParamSchema),
     getChallengeByIdController
 );
 
@@ -45,15 +48,16 @@ router.patch(
     '/:challengeId/status',
     authenticate,
     authorize('ADMIN'),
+    validate(challengeIdParamSchema),
     validate(updateChallengeStatusSchema),
     updateChallengeStatusController
 );
-
 
 router.patch(
     '/:challengeId',
     authenticate,
     authorize('ADMIN'),
+    validate(challengeIdParamSchema),
     validate(updateChallengeSchema),
     updateChallengeController
 );

@@ -27,11 +27,16 @@ function ProtectedRoute({
         isLoading,
         isAuthenticated,
         hasAnyRole,
+        sessionError,
+        retrySession,
     } = authContext;
 
     // Wait until we know whether a session exists
     if (isLoading) {
         return <p>Loading...</p>;
+    }
+    if (sessionError) {
+        return <div className="p-6 text-white"><p role="alert">{sessionError}</p><button onClick={retrySession} className="mt-4 rounded-lg bg-purple-600 px-4 py-2">Retry</button></div>;
     }
 
     // Not logged in → go to login

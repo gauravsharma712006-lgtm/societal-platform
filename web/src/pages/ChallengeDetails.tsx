@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 interface Challenge {
     _id: string;
@@ -14,6 +15,8 @@ interface Challenge {
 
 const ChallengeDetails = () => {
     const { challengeId } = useParams();
+    const { hasRole } = useAuth();
+    const canApply = hasRole('STUDENT');
 
     const [challenge, setChallenge] =
         useState<Challenge | null>(null);
@@ -35,8 +38,14 @@ const ChallengeDetails = () => {
 
     const [applicationMessage, setApplicationMessage] =
         useState('');
+    const [applicationSubmitted, setApplicationSubmitted] = useState(false);
 
     useEffect(() => {
+        setApplicationSubmitted(false);
+        setShowApplyModal(false);
+        setApplicationMessage('');
+        setMotivation('');
+        setSkills('');
         const loadChallenge = async () => {
             try {
                 setLoading(true);
@@ -78,7 +87,7 @@ const ChallengeDetails = () => {
     ) => {
         event.preventDefault();
 
-        if (!challengeId) {
+        if (!challengeId || submitting || applicationSubmitted || !canApply) {
             return;
         }
 
@@ -107,6 +116,7 @@ const ChallengeDetails = () => {
             setApplicationMessage(
                 'Application submitted successfully.'
             );
+            setApplicationSubmitted(true);
 
             setMotivation('');
             setSkills('');
@@ -353,7 +363,7 @@ const ChallengeDetails = () => {
 
                                 <div className="mt-8">
 
-                                    {isOpen ? (
+                                    {canApply && isOpen && !applicationSubmitted ? (
                                         <button
                                             onClick={() =>
                                                 setShowApplyModal(
@@ -367,8 +377,11 @@ const ChallengeDetails = () => {
                                     ) : (
                                         <div className="rounded-xl border border-white/10 bg-white/5 px-5 py-4 text-center">
                                             <p className="text-sm text-gray-500">
-                                                Applications are
-                                                currently closed.
+                                                {applicationSubmitted
+                                                    ? 'Your application has been submitted.'
+                                                    : !canApply
+                                                        ? 'Student accounts can apply to this challenge.'
+                                                        : 'Applications are currently closed.'}
                                             </p>
                                         </div>
                                     )}
@@ -548,12 +561,14 @@ const ChallengeDetails = () => {
 
                                 <button
                                     type="submit"
-                                    disabled={submitting}
+                                    disabled={submitting || applicationSubmitted}
                                     className="rounded-xl bg-purple-600 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-purple-900/20 transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {submitting
                                         ? 'Submitting...'
-                                        : 'Submit Application'}
+                                        : applicationSubmitted
+                                            ? 'Application Submitted'
+                                            : 'Submit Application'}
                                 </button>
 
                             </div>

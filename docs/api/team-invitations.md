@@ -18,7 +18,7 @@ Team leaders invite other students to join their team.
 **Responses**
 
 - `201 Created`
-- `400 Bad Request` — team not active / challenge not open / invited user is not a student
+- `400 Bad Request` — team not active / challenge not open / deadline has passed / invited user is not a student
 - `403 Forbidden` — requester is not the team leader
 - `404 Not Found` — team / challenge / user not found
 - `409 Conflict` — user already a member, or a pending invitation already exists
@@ -31,11 +31,12 @@ Team leaders invite other students to join their team.
 |-------|------|
 | `status` | `ACCEPTED` \| `REJECTED` |
 
-Accepting adds the student as a `MEMBER` (after checking they are not already in a team for that challenge).
+Accepting before the challenge deadline adds the student as a `MEMBER` (after checking they are not already in a team for that challenge). A pending invitation for an open challenge can still be declined after its deadline.
 
 **Responses**
 
 - `200 OK`
+- `400 Bad Request` — team/challenge no longer active/open, or deadline has passed when accepting
 - `403 Forbidden` — not the invited student
 - `404 Not Found` — invitation / team / challenge not found
 - `409 Conflict` — already responded, or already in a team for this challenge

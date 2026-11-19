@@ -7,6 +7,7 @@ import {
 import {
   validate,
 } from '../middleware/validate.middleware';
+import { authorize } from '../middleware/authorize.middleware';
 
 import {
   getMe,
@@ -25,6 +26,7 @@ const router = Router();
 router.get(
   '/students',
   authenticate,
+  authorize('STUDENT'),
   getStudentsController
 );
 

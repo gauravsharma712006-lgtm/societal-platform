@@ -1,4 +1,6 @@
+
 import { z } from 'zod';
+import { mongoObjectIdSchema } from './common.validator';
 
 export const createTeamSchema = z.object({
     name: z
@@ -13,12 +15,9 @@ export const createTeamSchema = z.object({
         .min(10)
         .max(1000),
 
-    challenge: z
-        .string()
-        .min(1),
+    challenge: mongoObjectIdSchema,
 });
 
-
 export const teamIdSchema = z.object({
-    teamId: z.string().min(1),
+    teamId: mongoObjectIdSchema,
 });

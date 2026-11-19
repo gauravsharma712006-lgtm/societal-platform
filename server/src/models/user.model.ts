@@ -14,6 +14,7 @@ export interface IUser extends Document {
   password: string;
   role: UserRole;
   isVerified: boolean;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +60,11 @@ const userSchema = new Schema<IUser>(
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    // Existing documents without this field stay active; false revokes access.
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   {

@@ -1,15 +1,16 @@
+
 import { z } from 'zod';
+import { mongoObjectIdSchema } from './common.validator';
 
-export const createTeamInvitationSchema =
-    z.object({
-        team: z.string().min(1),
-        invitedUser: z.string().min(1),
-    });
+export const createTeamInvitationSchema = z.object({
+    team: mongoObjectIdSchema,
+    invitedUser: mongoObjectIdSchema,
+});
 
-export const respondToTeamInvitationSchema =
-    z.object({
-        status: z.enum([
-            'ACCEPTED',
-            'REJECTED',
-        ]),
-    });
+export const respondToTeamInvitationSchema = z.object({
+    invitationId: mongoObjectIdSchema,
+    status: z.enum([
+        'ACCEPTED',
+        'REJECTED',
+    ]),
+});

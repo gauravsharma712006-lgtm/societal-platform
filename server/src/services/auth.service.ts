@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 
 import User from '../models/user.model';
 
@@ -9,10 +10,16 @@ import {
 
 import { generateAccessToken } from '../utils/jwt';
 
+// Never authenticate with this value; equalize missing-account bcrypt work.
+const dummyPasswordHash = bcrypt.hash(randomBytes(32).toString('hex'), 12);
+
 export const registerUser = async (
   input: RegisterInput
 ) => {
   const { name, email, password } = input;
+
+  // All valid registration attempts pay the same hashing cost.
+  const hashedPassword = await bcrypt.hash(password, 12);
 
   // Check whether user already exists
   const existingUser = await User.findOne({ email });
@@ -20,9 +27,6 @@ export const registerUser = async (
   if (existingUser) {
     throw new Error('USER_ALREADY_EXISTS');
   }
-
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 12);
 
   // Create user
   const user = await User.create({
@@ -48,17 +52,13 @@ export const loginUser = async (
   // Find user
   const user = await User.findOne({ email });
 
-  if (!user) {
-    throw new Error('INVALID_CREDENTIALS');
-  }
-
   // Verify password
   const passwordMatches = await bcrypt.compare(
     password,
-    user.password
+    user?.password || await dummyPasswordHash
   );
 
-  if (!passwordMatches) {
+  if (!user || !passwordMatches || user.isActive === false) {
     throw new Error('INVALID_CREDENTIALS');
   }
 

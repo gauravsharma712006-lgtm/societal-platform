@@ -29,8 +29,8 @@ interface Invitation {
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
   createdAt: string;
   respondedAt?: string;
-  team: Team;
-  invitedBy: InvitedBy;
+  team: Team | null;
+  invitedBy: InvitedBy | null;
 }
 
 function Invitations() {
@@ -65,6 +65,7 @@ function Invitations() {
     invitationId: string,
     status: 'ACCEPTED' | 'REJECTED'
   ) => {
+    if (processingId !== null) return;
     try {
       setProcessingId(invitationId);
       setError('');
@@ -143,7 +144,7 @@ function Invitations() {
         )}
 
         {/* Empty */}
-        {invitations.length === 0 ? (
+        {!error && invitations.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-[#0b0b0b] p-10 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-purple-500/10 text-2xl">
               ✉
@@ -169,7 +170,11 @@ function Invitations() {
           <div className="space-y-4">
             {invitations.map((invitation) => {
               const isPending =
-                invitation.status === 'PENDING';
+                invitation.status === 'PENDING' &&
+                invitation.team?.status === 'ACTIVE' &&
+                invitation.team.challenge?.status === 'OPEN';
+              const canAccept = isPending &&
+                new Date(invitation.team!.challenge.deadline).getTime() > Date.now();
 
               const isProcessing =
                 processingId === invitation._id;
@@ -185,26 +190,25 @@ function Invitations() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-3">
                         <h2 className="text-xl font-semibold">
-                          {invitation.team.name}
+                          {invitation.team?.name || 'Team no longer available'}
                         </h2>
 
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-medium ${
-                            invitation.status === 'PENDING'
-                              ? 'bg-yellow-500/10 text-yellow-300'
-                              : invitation.status === 'ACCEPTED'
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${invitation.status === 'PENDING'
+                            ? 'bg-yellow-500/10 text-yellow-300'
+                            : invitation.status === 'ACCEPTED'
                               ? 'bg-green-500/10 text-green-300'
                               : invitation.status === 'REJECTED'
-                              ? 'bg-red-500/10 text-red-300'
-                              : 'bg-white/10 text-white/50'
-                          }`}
+                                ? 'bg-red-500/10 text-red-300'
+                                : 'bg-white/10 text-white/50'
+                            }`}
                         >
                           {invitation.status}
                         </span>
                       </div>
 
                       <p className="mt-3 text-sm leading-6 text-white/60">
-                        {invitation.team.description}
+                        {invitation.team?.description || 'No team description available.'}
                       </p>
 
                       <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
@@ -214,7 +218,7 @@ function Invitations() {
                           </p>
 
                           <p className="mt-1 text-white/80">
-                            {invitation.team.challenge?.title ||
+                            {invitation.team?.challenge?.title ||
                               'Unknown challenge'}
                           </p>
                         </div>
@@ -248,11 +252,8 @@ function Invitations() {
                           </p>
 
                           <p className="mt-1 text-white/80">
-                            {invitation.team.challenge?.deadline
-                              ? formatDate(
-                                  invitation.team.challenge
-                                    .deadline
-                                )
+                            {invitation.team?.challenge?.deadline
+                              ? formatDate(invitation.team.challenge.deadline)
                               : '—'}
                           </p>
                         </div>
@@ -275,7 +276,7 @@ function Invitations() {
                               'REJECTED'
                             )
                           }
-                          disabled={isProcessing}
+                          disabled={processingId !== null}
                           className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-white/60 transition hover:border-red-500/30 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Reject
@@ -288,7 +289,8 @@ function Invitations() {
                               'ACCEPTED'
                             )
                           }
-                          disabled={isProcessing}
+                          disabled={processingId !== null || !canAccept}
+                          title={!canAccept ? 'The challenge deadline has passed.' : undefined}
                           className="rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-medium transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {isProcessing

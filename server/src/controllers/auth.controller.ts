@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { logError } from '../utils/log-error';
 
 import {
   loginUser,
@@ -22,19 +23,26 @@ export const register = async (
       data: user,
     });
   } catch (error) {
-    if (
+    const isDuplicateEmail =
       error instanceof Error &&
-      error.message === 'USER_ALREADY_EXISTS'
-    ) {
+      error.message === 'USER_ALREADY_EXISTS';
+
+    const isMongoDuplicateKey =
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 11000;
+
+    if (isDuplicateEmail || isMongoDuplicateKey) {
       res.status(409).json({
         status: 'error',
-        message: 'User with this email already exists',
+        message: 'Unable to register with these details',
       });
 
       return;
     }
 
-    console.error('Registration error:', error);
+    logError('Registration failed', error);
 
     res.status(500).json({
       status: 'error',
@@ -56,24 +64,25 @@ export const login = async (
       message: 'Login successful',
       data: user,
     });
+
   } catch (error) {
-    if (
+    const isInvalidCredentials =
       error instanceof Error &&
-      error.message === 'INVALID_CREDENTIALS'
-    ) {
+      error.message === 'INVALID_CREDENTIALS';
+
+    if (isInvalidCredentials) {
       res.status(401).json({
         status: 'error',
         message: 'Invalid email or password',
       });
-
       return;
     }
 
-    console.error('Login error:', error);
+    logError('Login failed', error);
 
     res.status(500).json({
       status: 'error',
       message: 'Internal Server Error',
     });
   }
-};
+}

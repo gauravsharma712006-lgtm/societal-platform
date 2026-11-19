@@ -20,7 +20,7 @@ function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(() => auth.takeSessionMessage());
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -52,12 +52,12 @@ function Login() {
 
       setMessage(result.message);
 
-      console.log('Login response:', result);
-      console.log('Authenticated user:', me.data);
-
       setEmail('');
       setPassword('');
     } catch (error) {
+      auth.removeToken();
+      setUser(null);
+
       setError(
         error instanceof Error
           ? error.message
